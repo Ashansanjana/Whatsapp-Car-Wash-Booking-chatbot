@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Session data
+.wwebjs_auth/
+.wwebjs_cache/
+session-data/
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets
+google_calendar_credentials.json

@@ -1,0 +1,30 @@
+{
+  "name": "whstspbot",
+  "version": "1.0.0",
+  "description": "Automatic WhatsApp sending and reply system using WhatsApp Web",
+  "main": "index.js",
+  "scripts": {
+    "start": "node start.js",
+    "dev": "nodemon index.js",
+    "direct": "node index.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "automation",
+    "whatsapp-web"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "dotenv": "^17.2.3",
+    "googleapis": "^170.0.0",
+    "openai": "^6.16.0",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.23.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
