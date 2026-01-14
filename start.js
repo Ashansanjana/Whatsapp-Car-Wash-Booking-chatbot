@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+require('dotenv').config();
 
 console.log('🚀 WhatsApp Bot Starter\n');
 console.log('━'.repeat(50));
@@ -69,6 +70,14 @@ try {
       console.log(`      To use the calendar, please place your Service Account JSON key at: ${absolutePath}`);
     } else {
       console.log(`   Calendar Integration: ✅ Credentials file found`);
+    }
+
+    if (!config.aiBot.calendar.calendarId) {
+      console.log(`   Calendar ID: ❌ Missing!`);
+      console.error(`   ⚠️  Error: calendarId is not defined in config.js or .env`);
+      console.log(`      Please add CALENDAR_ID=your-email@gmail.com to your .env file.`);
+    } else {
+      console.log(`   Calendar ID: ✅ ${config.aiBot.calendar.calendarId}`);
     }
   }
 

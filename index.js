@@ -31,15 +31,28 @@ if (config.aiBot.calendar && config.aiBot.calendar.enabled) {
 // Helper: Check Availability
 async function checkAvailability(startTime, endTime) {
   try {
+    const calendarId = config.aiBot.calendar.calendarId;
+
+    if (!calendarId) {
+      throw new Error('CALENDAR_ID is not defined in .env or config.js');
+    }
+
     const response = await calendar.freebusy.query({
       resource: {
         timeMin: startTime,
         timeMax: endTime,
-        items: [{ id: config.aiBot.calendar.calendarId }],
+        items: [{ id: calendarId }],
       },
     });
 
-    const busy = response.data.calendars[config.aiBot.calendar.calendarId].busy;
+    const calendarResult = response.data.calendars[calendarId];
+    if (!calendarResult) {
+      console.error('Calendar API Error: No data returned for ID:', calendarId);
+      console.log('Full Response Scope:', JSON.stringify(response.data, null, 2));
+      return `Error: Calendar information not found for ${calendarId}`;
+    }
+
+    const busy = calendarResult.busy || [];
     if (busy.length > 0) {
       return `Busy during these times: ${JSON.stringify(busy)}`;
     }
