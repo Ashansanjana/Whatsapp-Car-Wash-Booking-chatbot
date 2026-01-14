@@ -52,7 +52,7 @@ async function checkAvailability(startTime, endTime) {
 
 // Helper: Book Meeting
 // Helper: Book Appointment
-async function bookAppointment(serviceId, startTime, guestEmail) {
+async function bookAppointment(serviceId, startTime, guestEmail, customerInfo) {
   try {
     const service = config.services[serviceId];
     if (!service) {
@@ -63,15 +63,18 @@ async function bookAppointment(serviceId, startTime, guestEmail) {
     // Duration from config
     const end = new Date(start.getTime() + service.duration * 60000);
 
-    const summary = `${service.name} for Customer`;
-    const description = `Service: ${service.name}\nDuration: ${service.duration} mins\nPrice: ${service.price} LKR\nBooked via WhatsApp Assistant.`;
+    const customerName = customerInfo?.name || 'Customer';
+    const customerNumber = customerInfo?.number || 'Unknown';
+
+    const summary = `${service.name} - ${customerName}`;
+    const description = `Service: ${service.name}\nCustomer: ${customerName}\nPhone: ${customerNumber}\nDuration: ${service.duration} mins\nPrice: ${service.price} LKR\nBooked via WhatsApp Assistant.`;
 
     const event = {
       summary: summary,
       description: description,
       start: { dateTime: start.toISOString() },
       end: { dateTime: end.toISOString() },
-      attendees: [], // Service Account restriction: No attendees
+      attendees: guestEmail ? [{ email: guestEmail }] : [],
     };
 
     const response = await calendar.events.insert({
@@ -80,7 +83,7 @@ async function bookAppointment(serviceId, startTime, guestEmail) {
     });
 
     const eventLink = response.data.htmlLink;
-    return `Appointment booked for ${service.name}!\nPrice: ${service.price} LKR\nView Event: ${eventLink}`;
+    return `Appointment booked for ${service.name}!\nCustomer: ${customerName}\nPrice: ${service.price} LKR\nView Event: ${eventLink}`;
   } catch (error) {
     console.error('Booking Error:', error);
     return `Error booking appointment: ${error.message}`;
@@ -157,11 +160,17 @@ client.on('disconnected', (reason) => {
 // Handle incoming messages
 client.on('message', async (message) => {
   try {
+    // Get contact info
+    const chat = await message.getChat();
+    const contact = await message.getContact();
+    const customerInfo = {
+      name: contact.name || contact.pushname || 'Customer',
+      number: message.from.split('@')[0] // Clean number
+    };
+
     // Log message if enabled
     if (config.bot.logMessages) {
-      const chat = await message.getChat();
-      const contact = await message.getContact();
-      console.log(`📨 Message from ${contact.name || contact.pushname} (${message.from}): ${message.body}`);
+      console.log(`📨 Message from ${customerInfo.name} (${message.from}): ${message.body}`);
     }
 
     // Ignore if auto-reply is disabled
@@ -290,7 +299,7 @@ client.on('message', async (message) => {
               if (fnName === 'check_availability') {
                 toolResult = await checkAvailability(args.start_time, args.end_time);
               } else if (fnName === 'book_appointment') {
-                toolResult = await bookAppointment(args.service_id, args.start_time, args.guest_email);
+                toolResult = await bookAppointment(args.service_id, args.start_time, args.guest_email, customerInfo);
               } else {
                 toolResult = "Unknown tool";
               }

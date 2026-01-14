@@ -59,6 +59,19 @@ try {
     console.log(`   Scheduled messages: ${config.autoSend.messages.length}`);
   }
 
+  // Check for Google Calendar credentials if enabled
+  if (config.aiBot.calendar && config.aiBot.calendar.enabled) {
+    const credPath = config.aiBot.calendar.credentialsPath;
+    const absolutePath = path.resolve(credPath);
+    if (!fs.existsSync(credPath)) {
+      console.log(`   Calendar Integration: ❌ Credentials file missing!`);
+      console.warn(`   ⚠️  Warning: ${credPath} was not found.`);
+      console.log(`      To use the calendar, please place your Service Account JSON key at: ${absolutePath}`);
+    } else {
+      console.log(`   Calendar Integration: ✅ Credentials file found`);
+    }
+  }
+
 } catch (error) {
   console.error('❌ Error loading config.js:', error.message);
   process.exit(1);

@@ -125,6 +125,51 @@ autoSend: {
 }
 ```
 
+### AI & Google Calendar Settings
+
+If you have enabled the AI bot with calendar integration, you need to configure the following:
+
+```javascript
+aiBot: {
+  enabled: true,
+  model: 'gpt-4o-mini',
+  calendar: {
+    enabled: true,
+    calendarId: 'your-email@gmail.com',
+    credentialsPath: './google_calendar_credentials.json',
+  },
+  // ...
+}
+```
+
+#### Setting up Google Calendar API
+
+To use the booking feature, you must set up a Google Cloud Service Account:
+
+1.  **Create a Project**: Go to the [Google Cloud Console](https://console.cloud.google.com/) and create a new project.
+2.  **Enable API**: Go to **APIs & Services > Library**, search for **"Google Calendar API"**, and click **Enable**.
+3.  **Create Service Account**:
+    - Go to **APIs & Services > Credentials**.
+    - Click **Create Credentials > Service Account**.
+    - Give it a name and click **Create and Continue**.
+    - Skip optional roles and click **Done**.
+4.  **Generate JSON Key**:
+    - Click on the email of the Service Account you just created.
+    - Go to the **Keys** tab.
+    - Click **Add Key > Create new key**.
+    - Select **JSON** and click **Create**.
+    - A file will download. Rename it to `google_calendar_credentials.json` and place it in the project root.
+5.  **Share Your Calendar**:
+    - Open the JSON file and copy the `client_email` address.
+    - Go to your [Google Calendar](https://calendar.google.com/).
+    - Find the calendar you want to use (under "My calendars" on the left).
+    - Click the three dots next to it > **Settings and sharing**.
+    - Scroll down to **Share with specific people or groups**.
+    - Click **Add people and groups** and paste the Service Account email.
+    - Set permissions to **Make changes to events**.
+    - Click **Send**.
+6.  **Update Config**: Ensure the `calendarId` in `config.js` matches your Gmail address (or the specific calendar ID).
+
 ### Phone Number Format
 
 - **Individual chats**: `[country_code][number]@c.us`
