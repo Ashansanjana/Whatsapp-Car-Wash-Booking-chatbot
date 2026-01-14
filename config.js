@@ -56,7 +56,7 @@ module.exports = {
     // Calendar Integration
     calendar: {
       enabled: true,
-      calendarId: 'chanakaprasadcw@gmail.com',
+      calendarId: process.env.CALENDAR_ID,
       credentialsPath: './google_calendar_credentials.json',
     },
 
