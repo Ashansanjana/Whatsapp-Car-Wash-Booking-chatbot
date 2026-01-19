@@ -122,6 +122,10 @@ const client = new Client({
   authStrategy: new LocalAuth({
     dataPath: config.client.sessionPath
   }),
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1018939634-alpha.html',
+  },
   puppeteer: puppeteerConfig
 });
 
@@ -139,11 +143,29 @@ client.on('qr', (qr) => {
 });
 
 // Client is ready
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log('✅ WhatsApp Bot is ready!');
   console.log('📞 Connected as:', client.info.pushname);
   console.log('📱 Phone:', client.info.wid.user);
   console.log('━'.repeat(50));
+
+  // Safety patch for the 'markedUnread' error
+  try {
+    await client.pupPage.evaluate(() => {
+      if (window.WWebJS && window.WWebJS.sendSeen) {
+        const originalSendSeen = window.WWebJS.sendSeen;
+        window.WWebJS.sendSeen = async (chatId) => {
+          try {
+            return await originalSendSeen(chatId);
+          } catch (e) {
+            return true; // Ignore failures in marking as seen
+          }
+        };
+      }
+    });
+  } catch (patchError) {
+    console.warn('⚠️ Could not apply sendSeen patch (might not be needed):', patchError.message);
+  }
 
   // Start automatic message sending if enabled
   if (config.autoSend.enabled) {
@@ -304,6 +326,9 @@ client.on('message', async (message) => {
             messages: messages,
             tools: tools,
             tool_choice: "auto",
+          }).catch(err => {
+            console.error('DEBUG OpenAI API Error:', err);
+            throw err;
           });
 
           const responseMessage = response.choices[0].message;
@@ -338,10 +363,16 @@ client.on('message', async (message) => {
             // No tool calls, final response
             const aiReply = responseMessage.content;
             if (aiReply) {
-              await message.reply(aiReply);
-              console.log('✅ AI replied:', aiReply);
+              try {
+                const chat = await message.getChat();
+                await chat.sendMessage(aiReply);
+                console.log('✅ AI replied:', aiReply);
+              } catch (sendError) {
+                console.error('❌ Error sending AI reply, trying client fallback:', sendError.message);
+                await client.sendMessage(message.from, aiReply);
+              }
               messages.push({ role: "assistant", content: aiReply });
-              replied = true; // Set here immediately
+              replied = true;
             }
             finalReplySent = true;
           }
@@ -382,18 +413,30 @@ client.on('message', async (message) => {
     if (!replied) {
       for (const [keyword, response] of Object.entries(config.autoReply.keywords)) {
         if (messageBody.includes(keyword.toLowerCase())) {
-          await message.reply(response);
-          console.log(`✅ Auto-replied with keyword: "${keyword}"`);
+          try {
+            const chat = await message.getChat();
+            await chat.sendMessage(response);
+            console.log(`✅ Auto-replied with keyword: "${keyword}"`);
+          } catch (sendError) {
+            console.error('❌ Error sending keyword reply:', sendError.message);
+            await client.sendMessage(message.from, response);
+          }
           replied = true;
-          break; // Only send one reply per message
+          break;
         }
       }
     }
 
     // Send default reply if no keyword matched and default reply is enabled
     if (!replied && config.autoReply.useDefaultReply) {
-      await message.reply(config.autoReply.defaultReply);
-      console.log('✅ Auto-replied with default message');
+      try {
+        const chat = await message.getChat();
+        await chat.sendMessage(config.autoReply.defaultReply);
+        console.log('✅ Auto-replied with default message');
+      } catch (sendError) {
+        console.error('❌ Error sending default reply:', sendError.message);
+        await client.sendMessage(message.from, config.autoReply.defaultReply);
+      }
     }
 
   } catch (error) {
