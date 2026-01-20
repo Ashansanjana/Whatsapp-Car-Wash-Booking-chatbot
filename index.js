@@ -1,7 +1,7 @@
+require('dotenv').config(); // Load environment variables FIRST
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const config = require('./config');
-require('dotenv').config();
+const config = require('./config'); // Now this can access process.env.CALENDAR_ID
 const OpenAI = require('openai');
 const HistoryManager = require('./history');
 
@@ -68,24 +68,51 @@ async function checkAvailability(startTime, endTime) {
   }
 }
 
-// Helper: Book Meeting
-// Helper: Book Appointment
-async function bookAppointment(serviceId, startTime, guestEmail, customerInfo) {
+// Helper: Book Appointment (Car Wash - Supports multiple services and vehicle types)
+async function bookAppointment(serviceIds, vehicleType, startTime, guestEmail, customerInfo) {
   try {
-    const service = config.services[serviceId];
-    if (!service) {
-      return `Error: Service '${serviceId}' not found.`;
+    // Handle both single service (string) or multiple services (array)
+    const serviceArray = Array.isArray(serviceIds) ? serviceIds : [serviceIds];
+
+    // Validate vehicle type
+    if (!config.vehicleTypes[vehicleType]) {
+      return `Error: Invalid vehicle type '${vehicleType}'.`;
+    }
+
+    const vehicleTypeName = config.vehicleTypes[vehicleType];
+    let totalPrice = 0;
+    const serviceNames = [];
+
+    // Validate all services and calculate total price
+    for (const serviceId of serviceArray) {
+      const service = config.services[serviceId];
+      if (!service) {
+        return `Error: Service '${serviceId}' not found.`;
+      }
+
+      // Get price for specific vehicle type
+      const price = service.prices[vehicleType];
+      if (price === undefined) {
+        return `Error: No price found for ${service.name} with vehicle type ${vehicleTypeName}.`;
+      }
+
+      totalPrice += price;
+      serviceNames.push(service.name);
     }
 
     const start = new Date(startTime);
-    // Duration from config
-    const end = new Date(start.getTime() + service.duration * 60000);
+    // Use business appointment duration (60 mins for car wash)
+    const duration = config.businessInfo.appointmentDuration;
+    const end = new Date(start.getTime() + duration * 60000);
 
     const customerName = customerInfo?.name || 'Customer';
     const customerNumber = customerInfo?.number || 'Unknown';
 
-    const summary = `${service.name} - ${customerName}`;
-    const description = `Service: ${service.name}\nCustomer: ${customerName}\nPhone: ${customerNumber}\nDuration: ${service.duration} mins\nPrice: ${service.price} LKR\nBooked via WhatsApp Assistant.`;
+    // Format: "Name - Service1, Service2 (Vehicle) - Rs. Total"
+    const serviceList = serviceNames.join(', ');
+    const summary = `${customerName} - ${serviceList} (${vehicleTypeName}) - Rs. ${totalPrice.toLocaleString()}`;
+
+    const description = `Car Wash Appointment\n\nCustomer: ${customerName}\nPhone: ${customerNumber}\nVehicle Type: ${vehicleTypeName}\n\nServices:\n${serviceNames.map((name, i) => `- ${name}`).join('\n')}\n\nTotal Price: Rs. ${totalPrice.toLocaleString()}\nDuration: ${duration} mins\n\nBooked via WashBot (WhatsApp)`;
 
     const event = {
       summary: summary,
@@ -101,7 +128,7 @@ async function bookAppointment(serviceId, startTime, guestEmail, customerInfo) {
     });
 
     const eventLink = response.data.htmlLink;
-    return `Appointment booked for ${service.name}!\nCustomer: ${customerName}\nPrice: ${service.price} LKR\nView Event: ${eventLink}`;
+    return `✅ Appointment booked successfully!\n\nCustomer: ${customerName}\nVehicle: ${vehicleTypeName}\nServices: ${serviceList}\nTotal: Rs. ${totalPrice.toLocaleString()}\n\nView Event: ${eventLink}`;
   } catch (error) {
     console.error('Booking Error:', error);
     return `Error booking appointment: ${error.message}`;
@@ -296,19 +323,27 @@ client.on('message', async (message) => {
             type: "function",
             function: {
               name: "book_appointment",
-              description: "Book a salon appointment for a specific service.",
+              description: "Book a car wash appointment with one or more services for a specific vehicle type.",
               parameters: {
                 type: "object",
                 properties: {
-                  service_id: {
-                    type: "string",
-                    enum: Object.keys(config.services),
-                    description: "The ID of the service to book (e.g., haircut, beard_trim)"
+                  service_ids: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                      enum: Object.keys(config.services)
+                    },
+                    description: "Array of service IDs to book (e.g., ['wash_vacuum', 'engine_bay_clean']). Can also be a single service ID string."
                   },
-                  start_time: { type: "string", description: "ISO 8601 start time" },
+                  vehicle_type: {
+                    type: "string",
+                    enum: Object.keys(config.vehicleTypes),
+                    description: "The vehicle type (car_minivan, crossover, suv, or van)"
+                  },
+                  start_time: { type: "string", description: "ISO 8601 start time (e.g., 2026-01-20T14:00:00+05:30)" },
                   guest_email: { type: "string", description: "Email of the guest (optional)" },
                 },
-                required: ["service_id", "start_time"],
+                required: ["service_ids", "vehicle_type", "start_time"],
               },
             },
           }
@@ -346,7 +381,7 @@ client.on('message', async (message) => {
               if (fnName === 'check_availability') {
                 toolResult = await checkAvailability(args.start_time, args.end_time);
               } else if (fnName === 'book_appointment') {
-                toolResult = await bookAppointment(args.service_id, args.start_time, args.guest_email, customerInfo);
+                toolResult = await bookAppointment(args.service_ids, args.vehicle_type, args.start_time, args.guest_email, customerInfo);
               } else {
                 toolResult = "Unknown tool";
               }

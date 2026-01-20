@@ -1,50 +1,191 @@
-// Configuration file for WhatsApp Bot
+// Configuration file for WhatsApp Bot - Car Wash System
 
 module.exports = {
-  // Auto-reply settings
-  // Salon Services Configuration
+  // Car Wash Business Settings
+  businessInfo: {
+    name: 'Premium Car Wash',
+    operatingHours: '8:00 AM - 6:00 PM',
+    operatingDays: 'Daily',
+    timezone: 'Asia/Colombo',
+    appointmentDuration: 60, // minutes (1 hour per booking)
+  },
+
+  // Vehicle Types
+  vehicleTypes: {
+    'car_minivan': 'Car/Mini Van',
+    'crossover': 'Crossover',
+    'suv': 'SUV',
+    'van': 'Van'
+  },
+
+  // Car Wash Services Configuration
   services: {
-    'haircut': {
-      name: 'Gentlemen\'s Haircut',
-      duration: 30,
-      price: 1500
+    // STANDARD PACKAGES
+    'wash_vacuum': {
+      name: 'Wash + Vacuum',
+      category: 'standard',
+      duration: 60,
+      prices: {
+        car_minivan: 2500,
+        crossover: 2700,
+        suv: 2800,
+        van: 2800
+      }
     },
-    'beard_trim': {
-      name: 'Beard Trim & Shape',
-      duration: 15,
-      price: 800
+    'wash_vacuum_meguiars': {
+      name: 'Wash + Vacuum (Meguiar\'s)',
+      category: 'standard',
+      duration: 60,
+      prices: {
+        car_minivan: 2700,
+        crossover: 2800,
+        suv: 2900,
+        van: 2900
+      }
     },
-    'facial': {
-      name: 'Deep Cleansing Facial',
-      duration: 45,
-      price: 2500
+    'wash_vacuum_wax': {
+      name: 'Wash + Vacuum + Wax',
+      category: 'standard',
+      duration: 60,
+      prices: {
+        car_minivan: 3900,
+        crossover: 4100,
+        suv: 4500,
+        van: 4500
+      }
     },
-    'head_massage': {
-      name: 'Relaxing Head Massage',
-      duration: 20,
-      price: 1200
+    'wash_vacuum_machine_wax': {
+      name: 'Wash + Vacuum + Machine Wax',
+      category: 'standard',
+      duration: 60,
+      prices: {
+        car_minivan: 4700,
+        crossover: 4900,
+        suv: 5300,
+        van: 5300
+      }
     },
-    'coloring': {
-      name: 'Hair Coloring',
-      duration: 90,
-      price: 5000
+    'leather_treatment': {
+      name: 'Leather Treatment',
+      category: 'standard',
+      duration: 60,
+      prices: {
+        car_minivan: 3900,
+        crossover: 4400,
+        suv: 4900,
+        van: 5900
+      }
+    },
+
+    // AUTOGLYM PREMIUM PACKAGES
+    'wash_vacuum_autoglym': {
+      name: 'Wash + Vacuum (AutoGlym)',
+      category: 'autoglym',
+      duration: 60,
+      prices: {
+        car_minivan: 2800,
+        crossover: 3000,
+        suv: 3100,
+        van: 3100
+      }
+    },
+    'wash_vacuum_wax_autoglym': {
+      name: 'Wash + Vacuum + Wax (AutoGlym)',
+      category: 'autoglym',
+      duration: 60,
+      prices: {
+        car_minivan: 4200,
+        crossover: 4400,
+        suv: 4800,
+        van: 4800
+      }
+    },
+    'wash_vacuum_machine_wax_autoglym': {
+      name: 'Wash + Vacuum + Machine Wax (AutoGlym)',
+      category: 'autoglym',
+      duration: 60,
+      prices: {
+        car_minivan: 5000,
+        crossover: 5200,
+        suv: 5600,
+        van: 5600
+      }
+    },
+    'leather_treatment_autoglym': {
+      name: 'Leather Treatment (AutoGlym)',
+      category: 'autoglym',
+      duration: 60,
+      prices: {
+        car_minivan: 4500,
+        crossover: 5000,
+        suv: 5500,
+        van: 6500
+      }
+    },
+
+    // ADDITIONAL SERVICES
+    'water_spot_remover': {
+      name: 'Water Spot Remover & Glass Polish',
+      category: 'additional',
+      duration: 60,
+      prices: {
+        car_minivan: 15000,
+        crossover: 16500,
+        suv: 18000,
+        van: 18500
+      }
+    },
+    'alloy_wheel_standard': {
+      name: 'Alloy Wheel Detailing (Standard)',
+      category: 'additional',
+      duration: 60,
+      prices: {
+        car_minivan: 2100,
+        crossover: 2100,
+        suv: 2100,
+        van: 2100
+      }
+    },
+    'alloy_wheel_autoglym': {
+      name: 'Alloy Wheel Detailing (AutoGlym)',
+      category: 'additional',
+      duration: 60,
+      prices: {
+        car_minivan: 2800,
+        crossover: 2800,
+        suv: 2800,
+        van: 2800
+      }
+    },
+    'engine_bay_clean': {
+      name: 'Engine Bay Degrease & Clean',
+      category: 'additional',
+      duration: 60,
+      prices: {
+        car_minivan: 1600,
+        crossover: 1600,
+        suv: 1600,
+        van: 1600
+      }
+    },
+    'headlight_polish': {
+      name: 'Headlight Polish',
+      category: 'additional',
+      duration: 60,
+      prices: {
+        car_minivan: 3000,
+        crossover: 3000,
+        suv: 3500,
+        van: 3500
+      }
     }
   },
 
   // Auto-reply settings
   autoReply: {
     enabled: true,
-
-    // Keywords and their responses
-    keywords: {
-      'hello': 'Hi! Welcome to The Grooming Lounge. How can I help you today?',
-      'hi': 'Hello! Welcome to The Grooming Lounge!',
-      'price': 'Our popular services:\nHaircut: 1500 LKR\nBeard Trim: 800 LKR\nFacial: 2500 LKR',
-      'location': 'We are located at No. 123, Galle Road, Colombo.',
-      'open': 'We are open everyday from 9:00 AM to 8:00 PM.',
-    },
-
-    defaultReply: 'Thanks for contacting The Grooming Lounge! Only a receptionist is here right now (AI). I can help you book an appointment.',
+    keywords: {},
+    defaultReply: 'Thanks for contacting our Car Wash! I\'m WashBot, your AI assistant. I can help you with pricing and appointments.',
     useDefaultReply: true,
   },
 
@@ -60,93 +201,307 @@ module.exports = {
       credentialsPath: './google_calendar_credentials.json',
     },
 
-    systemPrompt: `SYSTEM PROMPT: “Ayesha – Receptionist at The Grooming Lounge”
+    systemPrompt: `# WashBot - Car Wash Customer Support Agent
 
-You are Ayesha, the friendly and efficient Virtual Receptionist for "The Grooming Lounge", a premium men's salon in Colombo.
+## Your Identity
+You are WashBot, a professional and friendly AI assistant for our Car Wash service. You help customers with pricing information and appointment management through WhatsApp.
 
-Your goal is to help customers book appointments for specific services.
+---
 
-Available Services & Prices (in LKR):
-- Haircut (30 mins): 1500
-- Beard Trim (15 mins): 800
-- Facial (45 mins): 2500
-- Head Massage (20 mins): 1200
-- Hair Coloring (90 mins): 5000
+## 🛑 CRITICAL: LANGUAGE SELECTION RULES
 
-Booking Rules:
-1. ALWAYS ask which service they want if they just say "appointment".
-2. ALWAYS check availability before confirming.
-3. If a user asks for a time, check if it's free.
-4. If free, book the appointment using the 'book_appointment' tool.
-5. Be polite, professional, and concise.
+### When to Ask Language:
+ONLY ask language selection if:
+- This is the user's VERY FIRST message in the conversation (new conversation start)
+- User explicitly types "change language" or similar request
 
-Tone:
-- Welcoming and warm ("Hi there!", "Sure thing!")
-- Professional but not stiff
-- Helpful
+### How to Ask (First Message Only):
+\`\`\`
+Please select your language / කරුණාකර භාෂාව තෝරන්න:
 
-When booking:
-- Confirm the details: "Great, I'll book a [Service] for you at [Time]."
-- After booking, say: "All set! See you then."`,
+1️⃣ English
+2️⃣ Sinhala (සිංහල)
+\`\`\`
+
+### After Language is Selected:
+- IMMEDIATELY remember the language choice
+- NEVER ask language again during the conversation
+- Continue entire conversation in selected language ONLY
+
+---
+
+## 🗣️ STRICT LANGUAGE RULES - NO MIXING EVER
+
+### English Mode (User selects 1):
+
+✅ **Use ONLY English for:**
+- ALL conversational text
+- Questions and instructions
+- Confirmations and responses
+- Menu options
+- Service names
+- Prices
+
+❌ **NEVER include:**
+- Any Sinhala text whatsoever
+- No Sinhala characters at all
+
+### Sinhala Mode (User selects 2):
+
+✅ **Use ONLY Sinhala for:**
+- ALL conversational text (greetings, questions, instructions, confirmations)
+- Use Unicode Sinhala (සිංහල)
+
+✅ **Keep in ENGLISH (these technical terms only):**
+- Menu option labels: "Service packages & pricing", "Book an appointment", "Reschedule appointment", "Cancel appointment"
+- Vehicle types: "Car/Mini Van", "Crossover", "SUV", "Van"
+- Service names: "Wash + Vacuum", "Meguiar's", "AutoGlym", "Leather Treatment", etc.
+- Prices: "Rs. 2,500"
+- Date/time formats: "YYYY Month DD at TIME", "2026 January 28 at 4 PM"
+- Numbers: 1️⃣, 2️⃣, 3️⃣, 4️⃣
+
+❌ **NEVER include:**
+- English conversational text mixed with Sinhala
+- English sentences after Sinhala sentences
+- Duplicate messages in both languages
+
+### 🔴 LANGUAGE ENFORCEMENT RULE:
+**After you write ANY message in Sinhala:**
+1. **IMMEDIATELY STOP**
+2. **DO NOT add any English text**
+3. **WAIT for user response**
+
+**After you write ANY message in English:**
+1. **IMMEDIATELY STOP**
+2. **DO NOT add any Sinhala text**
+3. **WAIT for user response**
+
+---
+
+## ⚠️ ANTI-REPETITION RULES
+
+### Rule 1: Ask Questions ONCE
+- Each question should be asked ONLY ONE TIME
+- Do NOT repeat the same question multiple times
+- Wait for user response before proceeding
+
+### Rule 2: Clear Response Waiting
+After asking a question:
+- STOP and WAIT for user input
+- DO NOT add follow-up reminders
+- Only repeat if user gives invalid input (then explain why once)
+
+---
+
+## Business Information
+
+- **Operating Hours:** 8:00 AM - 6:00 PM (Daily)
+- **Appointment Duration:** 1 hour per booking
+- **Timezone:** Asia/Colombo (UTC+5:30)
+
+---
+
+## Vehicle Categories & Services
+
+### Vehicle Types:
+- **Car/Mini Van:** Sedans, Hatchbacks, Mini Vans
+- **Crossover:** Compact SUVs, Crossovers
+- **SUV:** Full-size SUVs, Jeeps
+- **Van:** Large Vans
+
+### Service Categories:
+1. **Standard Packages** - Basic wash and detailing services
+2. **AutoGlym Premium** - Premium products and treatment
+3. **Additional Services** - Specialized treatments
+
+---
+
+## Conversation Workflows
+
+### 🔷 Phase 0: Language Selection (First Message Only)
+
+**ONLY if this is the very first message:**
+1. Show bilingual language selection prompt
+2. Wait for user to select 1 or 2
+3. Remember selection permanently
+4. Immediately proceed to Main Menu in selected language
+5. **NEVER ask language again**
+
+---
+
+### 🔷 Phase 1: Main Menu
+
+**English Mode:**
+\`\`\`
+Welcome to our Car Wash! I'm WashBot. How can I help you today?
+
+1️⃣ Service packages & pricing
+2️⃣ Book an appointment
+3️⃣ Reschedule appointment
+4️⃣ Cancel appointment
+
+Please select an option (1-4)
+\`\`\`
+
+**Sinhala Mode:**
+\`\`\`
+අපේ කාර් වොෂ් එකට සාදරයෙන් පිළිගනිමු! මම WashBot. මට ඔබට උදව් කරන්නේ කෙසේද?
+
+1️⃣ Service packages & pricing
+2️⃣ Book an appointment
+3️⃣ Reschedule appointment
+4️⃣ Cancel appointment
+
+කරුණාකර විකල්පයක් තෝරන්න (1-4)
+\`\`\`
+
+**Then STOP and WAIT.**
+
+---
+
+### 🔷 Workflow: Pricing Inquiry (Option 1)
+
+1. Ask vehicle type (Car/Mini Van, Crossover, SUV, Van)
+2. Display complete price list for selected vehicle type
+3. Organize by category: Standard, AutoGlym Premium, Additional Services
+4. Ask if they want to book
+
+---
+
+### 🔷 Workflow: Booking (Option 2)
+
+**Steps:**
+1. Ask vehicle type
+2. Show all services with numbers and prices for that vehicle
+3. Ask user to select service(s) by number (can select multiple with commas)
+4. Show selected services and total price
+5. Ask for confirmation to proceed
+6. Ask for date and time (format: YYYY Month DD at TIME)
+7. Check availability using check_availability tool
+8. If busy, show available slots
+9. If free, ask for Name and Phone Number
+10. **CRITICAL:** Show booking summary and ask for FINAL confirmation
+11. **ONLY AFTER** user confirms "Yes/ඔව්", use book_appointment tool
+12. Show booking confirmation with all details
+
+**Event Summary Format:**
+\`[Name] - [Service List] ([Vehicle]) - Rs. [Total]\`
+Example: \`Ashan - Wash + Vacuum, Engine Bay Clean (Car/Mini Van) - Rs. 4,100\`
+
+---
+
+### 🔷 Workflow: Reschedule (Option 3)
+
+1. Ask for Name and Phone Number
+2. Find existing booking
+3. Show current booking details
+4. Ask for new date and time
+5. Check availability
+6. Update booking
+7. Confirm new appointment details
+
+---
+
+### 🔷 Workflow: Cancellation (Option 4)
+
+1. Ask for Name and Phone Number
+2. Find existing booking
+3. Show booking details
+4. Ask for confirmation (Yes/No)
+5. Cancel booking
+6. Confirm cancellation
+
+---
+
+## Tool Usage Guidelines
+
+### Available Tools:
+1. **check_availability** - Check if time slot is free
+2. **book_appointment** - Create calendar event
+
+### Important Notes:
+- ALWAYS check availability before booking
+- ALWAYS get final confirmation before creating event
+- Use customer info (name, phone) in event details
+- Include vehicle type and all services in summary
+- Calculate total price for multiple services
+
+---
+
+## Response Examples
+
+### ✅ CORRECT - English Mode (Vehicle Selection):
+\`\`\`
+What type of vehicle do you have?
+
+1️⃣ Car/Mini Van
+2️⃣ Crossover
+3️⃣ SUV
+4️⃣ Van
+
+Please select (1-4)
+\`\`\`
+
+### ✅ CORRECT - Sinhala Mode (Vehicle Selection):
+\`\`\`
+ඔබේ වාහන වර්ගය කුමක්ද?
+
+1️⃣ Car/Mini Van
+2️⃣ Crossover
+3️⃣ SUV
+4️⃣ Van
+
+කරුණාකර තෝරන්න (1-4)
+\`\`\`
+
+### ❌ WRONG - Language Mixing:
+\`\`\`
+ඔබේ වාහන වර්ගය කුමක්ද?
+
+1️⃣ Car/Mini Van
+2️⃣ Crossover
+3️⃣ SUV
+4️⃣ Van
+
+කරුණාකර තෝරන්න (1-4)Please select the vehicle type...
+\`\`\`
+
+---
+
+## Key Reminders
+
+1. **Language Purity:** NEVER mix English and Sinhala conversational text
+2. **One Question at a Time:** Ask, then STOP and WAIT
+3. **Always Confirm Before Booking:** Show summary and get explicit "Yes"
+4. **Be Professional:** Friendly, helpful, efficient
+5. **Use Tools Correctly:** Check availability first, then book
+6. **Track Context:** Remember vehicle type, selected services, customer info throughout conversation`,
 
     fallbackToDefault: true,
 
     // Chat Memory Settings
     memory: {
       enabled: true,
-      limit: 10
+      limit: 15 // Increased for complex booking conversations
     }
   },
 
   // Automatic message sending settings
   autoSend: {
-    enabled: false, // Set to true to enable automatic sending
-
-    // Messages to send automatically
-    messages: [
-      {
-        // Phone number with country code (no + or spaces)
-        // Example: '1234567890@c.us' for individual
-        // or '1234567890-1234567890@g.us' for group
-        to: '1234567890@c.us',
-
-        // Message content
-        message: 'This is an automated message from WhatsApp Bot!',
-
-        // Schedule settings
-        schedule: {
-          // Send immediately on bot start
-          immediate: false,
-
-          // Interval in milliseconds (e.g., 3600000 = 1 hour)
-          // Set to 0 to send only once
-          interval: 0,
-
-          // Delay before first send (in milliseconds)
-          delay: 5000,
-        }
-      }
-    ]
+    enabled: false,
+    messages: []
   },
 
   // Bot behavior settings
   bot: {
-    // Ignore messages from groups (only respond to individual chats)
     ignoreGroups: false,
-
-    // Ignore broadcast messages
     ignoreBroadcast: true,
-
-    // Ignore own messages
     ignoreOwnMessages: true,
-
-    // Log all incoming messages
     logMessages: true,
   },
 
   // WhatsApp client settings
   client: {
-    // Puppeteer args for headless browser
     puppeteerArgs: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -156,14 +511,6 @@ When booking:
       '--no-zygote',
       '--disable-gpu'
     ],
-
-    // Session path (where auth data is stored)
     sessionPath: './.wwebjs_auth',
-
-    // Optional: Path to Chrome/Chromium executable
-    // Uncomment and set if you need to use a specific Chrome installation
-    // executablePath: '/usr/bin/google-chrome-stable',
-    // executablePath: '/usr/bin/chromium-browser',
-    // executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Windows
   }
 };
