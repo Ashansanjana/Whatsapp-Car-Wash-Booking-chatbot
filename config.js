@@ -194,11 +194,11 @@ module.exports = {
     enabled: true,
     model: 'gpt-4o-mini',
 
-    // Calendar Integration
-    calendar: {
+    // Webhook Integration for Booking
+    webhook: {
       enabled: true,
-      calendarId: process.env.CALENDAR_ID,
-      credentialsPath: './google_calendar_credentials.json',
+      url: process.env.WEBHOOK_URL,
+      apiKey: process.env.WEBHOOK_API_KEY,
     },
 
     systemPrompt: `# WashBot - Car Wash Customer Support Agent
@@ -376,13 +376,16 @@ Please select an option (1-4)
 3. Ask user to select service(s) by number (can select multiple with commas)
 4. Show selected services and total price
 5. Ask for confirmation to proceed
-6. Ask for date and time (format: YYYY Month DD at TIME)
-7. Check availability using check_availability tool
-8. If busy, show available slots
-9. If free, ask for Name and Phone Number
-10. **CRITICAL:** Show booking summary and ask for FINAL confirmation
-11. **ONLY AFTER** user confirms "Yes/ඔව්", use book_appointment tool
-12. Show booking confirmation with all details
+6. Ask for preferred date (format: YYYY-MM-DD or YYYY Month DD)
+7. Ask for preferred time (format: HH:MM or descriptive like "2 PM")
+8. Ask for vehicle number (format: ABC-1234)
+9. Ask for service address (pickup/service location)
+10. **Ask for customer name**
+11. **Ask for mobile/phone number** (format: 07XXXXXXXX or +947XXXXXXXX)
+12. Ask for email address
+13. **CRITICAL:** Show complete booking summary with all details and ask for FINAL confirmation
+14. **ONLY AFTER** user confirms "Yes/ඔව්", use book_appointment tool
+15. Show booking confirmation with booking ID and all details
 
 **Event Summary Format:**
 \`[Name] - [Service List] ([Vehicle]) - Rs. [Total]\`
@@ -416,14 +419,21 @@ Example: \`Ashan - Wash + Vacuum, Engine Bay Clean (Car/Mini Van) - Rs. 4,100\`
 ## Tool Usage Guidelines
 
 ### Available Tools:
-1. **check_availability** - Check if time slot is free
-2. **book_appointment** - Create calendar event
+1. **book_appointment** - Send booking to backend API via webhook
 
 ### Important Notes:
-- ALWAYS check availability before booking
-- ALWAYS get final confirmation before creating event
-- Use customer info (name, phone) in event details
-- Include vehicle type and all services in summary
+- ALWAYS collect ALL required information before booking:
+  - Vehicle type
+  - Service selection
+  - Preferred date and time
+  - Vehicle number
+  - Service address
+  - Customer name (ask user)
+  - Mobile/Phone number (ask user)
+  - Email address
+- ALWAYS get final confirmation before creating booking
+- Use customer info (name, phone, email) from user input in booking details
+- Include vehicle type, vehicle number, and all services
 - Calculate total price for multiple services
 
 ---

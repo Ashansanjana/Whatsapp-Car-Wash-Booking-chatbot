@@ -1,11 +1,9 @@
 require('dotenv').config(); // Load environment variables FIRST
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const config = require('./config'); // Now this can access process.env.CALENDAR_ID
+const config = require('./config'); // Now this can access process.env variables
 const OpenAI = require('openai');
 const HistoryManager = require('./history');
-
-const { google } = require('googleapis');
 
 // Initialize Chat History Manager
 let historyManager;
@@ -23,60 +21,62 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Initialize Google Calendar Client
-let calendar;
-if (config.aiBot.calendar && config.aiBot.calendar.enabled) {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: config.aiBot.calendar.credentialsPath,
-    scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'],
-  });
-  calendar = google.calendar({ version: 'v3', auth });
+
+// Helper: Generate Unique Booking ID
+function generateBookingId() {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+  const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `BK-WA-${dateStr}-${randomNum}`;
 }
 
-// Helper: Check Availability
-async function checkAvailability(startTime, endTime) {
-  try {
-    const calendarId = config.aiBot.calendar.calendarId;
+// Helper: Determine Package Type from Service Category
+function getPackageType(serviceId) {
+  const service = config.services[serviceId];
+  if (!service) return 'Standard';
 
-    if (!calendarId) {
-      throw new Error('CALENDAR_ID is not defined in .env or config.js');
-    }
+  const categoryMap = {
+    'standard': 'Standard',
+    'autoglym': 'Premium',
+    'additional': 'Additional'
+  };
 
-    const response = await calendar.freebusy.query({
-      resource: {
-        timeMin: startTime,
-        timeMax: endTime,
-        items: [{ id: calendarId }],
-      },
-    });
-
-    const calendarResult = response.data.calendars[calendarId];
-    if (!calendarResult) {
-      console.error('Calendar API Error: No data returned for ID:', calendarId);
-      console.log('Full Response Scope:', JSON.stringify(response.data, null, 2));
-      return `Error: Calendar information not found for ${calendarId}`;
-    }
-
-    const busy = calendarResult.busy || [];
-    if (busy.length > 0) {
-      return `Busy during these times: ${JSON.stringify(busy)}`;
-    }
-    return 'Free';
-  } catch (error) {
-    console.error('Calendar Error:', error);
-    return `Error checking availability: ${error.message}`;
-  }
+  return categoryMap[service.category] || 'Standard';
 }
 
-// Helper: Book Appointment (Car Wash - Supports multiple services and vehicle types)
-async function bookAppointment(serviceIds, vehicleType, startTime, guestEmail, customerInfo) {
+// Helper: Format conversation transcript
+function formatTranscript(messages) {
+  return messages
+    .filter(msg => msg.role !== 'system' && msg.role !== 'tool')
+    .map(msg => {
+      if (msg.role === 'user') return `User: ${msg.content}`;
+      if (msg.role === 'assistant') return `Bot: ${msg.content}`;
+      return '';
+    })
+    .filter(line => line)
+    .join('\n');
+}
+
+// Helper: Send Booking to Webhook API
+async function sendBookingWebhook(bookingData, customerInfo, conversationHistory) {
   try {
+    const {
+      serviceIds,
+      vehicleType,
+      startDateTime,
+      customerName,
+      phoneNumber,
+      email,
+      vehicleNumber,
+      serviceAddress
+    } = bookingData;
+
     // Handle both single service (string) or multiple services (array)
     const serviceArray = Array.isArray(serviceIds) ? serviceIds : [serviceIds];
 
     // Validate vehicle type
     if (!config.vehicleTypes[vehicleType]) {
-      return `Error: Invalid vehicle type '${vehicleType}'.`;
+      return { success: false, message: `Error: Invalid vehicle type '${vehicleType}'.` };
     }
 
     const vehicleTypeName = config.vehicleTypes[vehicleType];
@@ -87,51 +87,107 @@ async function bookAppointment(serviceIds, vehicleType, startTime, guestEmail, c
     for (const serviceId of serviceArray) {
       const service = config.services[serviceId];
       if (!service) {
-        return `Error: Service '${serviceId}' not found.`;
+        return { success: false, message: `Error: Service '${serviceId}' not found.` };
       }
 
       // Get price for specific vehicle type
       const price = service.prices[vehicleType];
       if (price === undefined) {
-        return `Error: No price found for ${service.name} with vehicle type ${vehicleTypeName}.`;
+        return { success: false, message: `Error: No price found for ${service.name} with vehicle type ${vehicleTypeName}.` };
       }
 
       totalPrice += price;
       serviceNames.push(service.name);
     }
 
-    const start = new Date(startTime);
-    // Use business appointment duration (60 mins for car wash)
-    const duration = config.businessInfo.appointmentDuration;
-    const end = new Date(start.getTime() + duration * 60000);
+    // Parse date and time from ISO string or formatted string
+    let preferredDate, preferredTime;
 
-    const customerName = customerInfo?.name || 'Customer';
-    const customerNumber = customerInfo?.number || 'Unknown';
+    if (startDateTime.includes('T')) {
+      // ISO format: 2026-01-30T10:30:00+05:30
+      const dt = new Date(startDateTime);
+      preferredDate = dt.toISOString().split('T')[0]; // YYYY-MM-DD
+      const hours = dt.getHours().toString().padStart(2, '0');
+      const minutes = dt.getMinutes().toString().padStart(2, '0');
+      preferredTime = `${hours}:${minutes}`; // HH:MM
+    } else {
+      // Assume date and time are already formatted
+      preferredDate = startDateTime.split(' ')[0] || startDateTime;
+      preferredTime = startDateTime.split(' ')[1] || '10:00';
+    }
 
-    // Format: "Name - Service1, Service2 (Vehicle) - Rs. Total"
-    const serviceList = serviceNames.join(', ');
-    const summary = `${customerName} - ${serviceList} (${vehicleTypeName}) - Rs. ${totalPrice.toLocaleString()}`;
+    // Generate unique booking ID
+    const bookingId = generateBookingId();
 
-    const description = `Car Wash Appointment\n\nCustomer: ${customerName}\nPhone: ${customerNumber}\nVehicle Type: ${vehicleTypeName}\n\nServices:\n${serviceNames.map((name, i) => `- ${name}`).join('\n')}\n\nTotal Price: Rs. ${totalPrice.toLocaleString()}\nDuration: ${duration} mins\n\nBooked via WashBot (WhatsApp)`;
+    // Get primary service name (first service) and package type
+    const primaryServiceName = serviceNames[0];
+    const packageType = getPackageType(serviceArray[0]);
 
-    const event = {
-      summary: summary,
-      description: description,
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() },
-      attendees: guestEmail ? [{ email: guestEmail }] : [],
+    // Use user-provided customer info
+    const finalCustomerName = customerName || 'Customer';
+    const customerPhone = phoneNumber || 'Not provided';
+
+    // Format transcript
+    const transcript = conversationHistory ? formatTranscript(conversationHistory) : 'WhatsApp booking conversation';
+
+    // Build webhook payload
+    const payload = {
+      name: finalCustomerName,
+      phone: customerPhone,
+      email: email || '',
+      bookingDetails: {
+        preferred_date: preferredDate,
+        preferred_time: preferredTime,
+        service_name: primaryServiceName,
+        package_type: packageType,
+        vehicle_type: vehicleTypeName,
+        vehicle_number: vehicleNumber || '',
+        service_address: serviceAddress || '',
+        total_price: totalPrice
+      },
+      bookingId: bookingId,
+      transcript: transcript
     };
 
-    const response = await calendar.events.insert({
-      calendarId: config.aiBot.calendar.calendarId,
-      resource: event,
+    console.log('📤 Sending booking to webhook:', JSON.stringify(payload, null, 2));
+
+    // Send POST request to webhook
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch(config.aiBot.webhook.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.aiBot.webhook.apiKey
+      },
+      body: JSON.stringify(payload)
     });
 
-    const eventLink = response.data.htmlLink;
-    return `✅ Appointment booked successfully!\n\nCustomer: ${customerName}\nVehicle: ${vehicleTypeName}\nServices: ${serviceList}\nTotal: Rs. ${totalPrice.toLocaleString()}\n\nView Event: ${eventLink}`;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Webhook Error:', response.status, errorText);
+      return {
+        success: false,
+        message: `Error: Webhook returned ${response.status}. ${errorText}`
+      };
+    }
+
+    const result = await response.json();
+    console.log('✅ Webhook Response:', result);
+
+    // Return success message
+    const serviceList = serviceNames.join(', ');
+    return {
+      success: true,
+      message: `✅ Booking confirmed successfully!\n\n📋 Booking ID: ${bookingId}\n👤 Customer: ${finalCustomerName}\n📞 Phone: ${customerPhone}\n📧 Email: ${email}\n🚗 Vehicle: ${vehicleTypeName} (${vehicleNumber})\n🛠️ Services: ${serviceList}\n📦 Package: ${packageType}\n📍 Address: ${serviceAddress}\n📅 Date: ${preferredDate}\n⏰ Time: ${preferredTime}\n💰 Total: Rs. ${totalPrice.toLocaleString()}\n\nYour booking has been sent to our system. We'll contact you shortly for confirmation!`,
+      bookingId: bookingId
+    };
+
   } catch (error) {
-    console.error('Booking Error:', error);
-    return `Error booking appointment: ${error.message}`;
+    console.error('❌ Webhook Booking Error:', error);
+    return {
+      success: false,
+      message: `Error sending booking: ${error.message}`
+    };
   }
 }
 
@@ -307,23 +363,8 @@ client.on('message', async (message) => {
           {
             type: "function",
             function: {
-              name: "check_availability",
-              description: "Check if the calendar is free for a specific time range.",
-              parameters: {
-                type: "object",
-                properties: {
-                  start_time: { type: "string", description: "ISO 8601 start time (e.g. 2024-05-21T10:00:00Z)" },
-                  end_time: { type: "string", description: "ISO 8601 end time" },
-                },
-                required: ["start_time", "end_time"],
-              },
-            },
-          },
-          {
-            type: "function",
-            function: {
               name: "book_appointment",
-              description: "Book a car wash appointment with one or more services for a specific vehicle type.",
+              description: "Book a car wash appointment with one or more services for a specific vehicle type. This will send the booking to the backend API.",
               parameters: {
                 type: "object",
                 properties: {
@@ -340,10 +381,32 @@ client.on('message', async (message) => {
                     enum: Object.keys(config.vehicleTypes),
                     description: "The vehicle type (car_minivan, crossover, suv, or van)"
                   },
-                  start_time: { type: "string", description: "ISO 8601 start time (e.g., 2026-01-20T14:00:00+05:30)" },
-                  guest_email: { type: "string", description: "Email of the guest (optional)" },
+                  start_date_time: {
+                    type: "string",
+                    description: "ISO 8601 start time (e.g., 2026-01-30T10:30:00+05:30) or formatted as 'YYYY-MM-DD HH:MM'"
+                  },
+                  customer_name: {
+                    type: "string",
+                    description: "Customer's full name"
+                  },
+                  phone_number: {
+                    type: "string",
+                    description: "Customer mobile/phone number (e.g., 0771234567 or +94771234567)"
+                  },
+                  email: {
+                    type: "string",
+                    description: "Customer email address"
+                  },
+                  vehicle_number: {
+                    type: "string",
+                    description: "Vehicle registration number (e.g., ABC-1234)"
+                  },
+                  service_address: {
+                    type: "string",
+                    description: "Customer service/pickup address"
+                  },
                 },
-                required: ["service_ids", "vehicle_type", "start_time"],
+                required: ["service_ids", "vehicle_type", "start_date_time", "customer_name", "phone_number", "email", "vehicle_number", "service_address"],
               },
             },
           }
@@ -378,10 +441,20 @@ client.on('message', async (message) => {
 
               console.log(`🛠️ Executing tool: ${fnName}`);
 
-              if (fnName === 'check_availability') {
-                toolResult = await checkAvailability(args.start_time, args.end_time);
-              } else if (fnName === 'book_appointment') {
-                toolResult = await bookAppointment(args.service_ids, args.vehicle_type, args.start_time, args.guest_email, customerInfo);
+              if (fnName === 'book_appointment') {
+                const bookingData = {
+                  serviceIds: args.service_ids,
+                  vehicleType: args.vehicle_type,
+                  startDateTime: args.start_date_time,
+                  customerName: args.customer_name,
+                  phoneNumber: args.phone_number,
+                  email: args.email,
+                  vehicleNumber: args.vehicle_number,
+                  serviceAddress: args.service_address
+                };
+
+                const result = await sendBookingWebhook(bookingData, customerInfo, messages);
+                toolResult = result.success ? result.message : result.message;
               } else {
                 toolResult = "Unknown tool";
               }
