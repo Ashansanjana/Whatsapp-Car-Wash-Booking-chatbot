@@ -191,6 +191,145 @@ async function sendBookingWebhook(bookingData, customerInfo, conversationHistory
   }
 }
 
+// Helper: Verify Booking ID via GET API
+async function verifyBookingId(bookingId) {
+  try {
+    const fetch = (await import('node-fetch')).default;
+    const url = `${config.aiBot.bookingApi.getEndpoint}/${bookingId}`;
+
+    console.log(`🔍 Verifying booking ID: ${bookingId}`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-api-key': config.aiBot.bookingApi.apiKey
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: `❌ Booking ID "${bookingId}" not found. Please check and try again.`
+        };
+      }
+      const errorText = await response.text();
+      return {
+        success: false,
+        message: `❌ Error verifying booking: ${response.status}. ${errorText}`
+      };
+    }
+
+    const bookingData = await response.json();
+    console.log('✅ Booking verified:', bookingData);
+
+    return {
+      success: true,
+      message: `✅ Booking verified successfully!\n\n📋 Booking ID: ${bookingId}\nYour booking exists in our system.`,
+      bookingData: bookingData
+    };
+
+  } catch (error) {
+    console.error('❌ Booking Verification Error:', error);
+    return {
+      success: false,
+      message: `Error verifying booking: ${error.message}`
+    };
+  }
+}
+
+// Helper: Update Booking via PATCH API
+async function updateBooking(bookingId, updates) {
+  try {
+    const fetch = (await import('node-fetch')).default;
+
+    console.log('🔍 Incoming updates object:', JSON.stringify(updates, null, 2));
+
+    // First, get the existing booking data
+    console.log('📥 Fetching existing booking data...');
+    const verifyResult = await verifyBookingId(bookingId);
+
+    if (!verifyResult.success) {
+      return {
+        success: false,
+        message: `Cannot update: ${verifyResult.message}`
+      };
+    }
+
+    // Extract existing details
+    const existingDetails = verifyResult.bookingData?.details || {};
+    console.log('📋 Existing details:', JSON.stringify(existingDetails, null, 2));
+
+    // Merge updates with existing details (updates override existing)
+    const mergedDetails = {
+      ...existingDetails,
+      ...updates
+    };
+
+    console.log('🔀 Merged details:', JSON.stringify(mergedDetails, null, 2));
+
+    // Build the payload with complete details object
+    // Backend expects "bookingDetails" not "details"
+    const payload = {
+      bookingId: bookingId,
+      bookingDetails: mergedDetails,
+      transcript: "Booking updated via WhatsApp Bot"
+    };
+
+    console.log('📤 Full PATCH payload:', JSON.stringify(payload, null, 2));
+
+    const response = await fetch(config.aiBot.bookingApi.patchEndpoint, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.aiBot.bookingApi.apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log('📡 API Response Status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Update Error:', response.status, errorText);
+      return {
+        success: false,
+        message: `❌ Failed to update booking: ${response.status}. ${errorText}`
+      };
+    }
+
+    const result = await response.json();
+    console.log('✅ API Response Body:', JSON.stringify(result, null, 2));
+
+    // Build success message with updated fields
+    let updatesList = [];
+    if (updates.preferred_date || updates.preferred_time) {
+      updatesList.push(`📅 Date & Time: ${updates.preferred_date || 'unchanged'} ${updates.preferred_time || ''}`);
+    }
+    if (updates.service_address) {
+      updatesList.push(`📍 Service Address: ${updates.service_address}`);
+    }
+    if (updates.vehicle_number) {
+      updatesList.push(`🚗 Vehicle Number: ${updates.vehicle_number}`);
+    }
+    if (updates.email) {
+      updatesList.push(`📧 Email: ${updates.email}`);
+    }
+
+    return {
+      success: true,
+      message: `✅ Booking updated successfully!\n\n📋 Booking ID: ${bookingId}\n${updatesList.join('\n')}\n\nYour changes have been saved.`
+    };
+
+  } catch (error) {
+    console.error('❌ Booking Update Error:', error);
+    return {
+      success: false,
+      message: `Error updating booking: ${error.message}`
+    };
+  }
+}
+
 // Initialize the WhatsApp client
 const puppeteerConfig = {
   args: config.client.puppeteerArgs
@@ -409,6 +548,60 @@ client.on('message', async (message) => {
                 required: ["service_ids", "vehicle_type", "start_date_time", "customer_name", "phone_number", "email", "vehicle_number", "service_address"],
               },
             },
+          },
+          {
+            type: "function",
+            function: {
+              name: "verify_booking",
+              description: "Verify if a booking ID exists in the system. Call this when user wants to reschedule/update their appointment.",
+              parameters: {
+                type: "object",
+                properties: {
+                  booking_id: {
+                    type: "string",
+                    description: "The booking ID to verify (e.g., 'BK-WA-20260119-123' or 'PCW-20260119-CUR4PU')"
+                  }
+                },
+                required: ["booking_id"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "update_appointment",
+              description: "Update an existing booking with new details. Only call this after collecting all updates from the user and getting their final confirmation.",
+              parameters: {
+                type: "object",
+                properties: {
+                  booking_id: {
+                    type: "string",
+                    description: "The booking ID to update"
+                  },
+                  preferred_date: {
+                    type: "string",
+                    description: "New preferred date in YYYY-MM-DD format (optional)"
+                  },
+                  preferred_time: {
+                    type: "string",
+                    description: "New preferred time in HH:MM format (optional)"
+                  },
+                  service_address: {
+                    type: "string",
+                    description: "New service/pickup address (optional)"
+                  },
+                  vehicle_number: {
+                    type: "string",
+                    description: "New vehicle registration number (optional)"
+                  },
+                  email: {
+                    type: "string",
+                    description: "New email address (optional)"
+                  }
+                },
+                required: ["booking_id"]
+              }
+            }
           }
         ];
 
@@ -455,6 +648,20 @@ client.on('message', async (message) => {
 
                 const result = await sendBookingWebhook(bookingData, customerInfo, messages);
                 toolResult = result.success ? result.message : result.message;
+              } else if (fnName === 'verify_booking') {
+                const result = await verifyBookingId(args.booking_id);
+                toolResult = result.message;
+              } else if (fnName === 'update_appointment') {
+                // Prepare updates object with only provided fields
+                const updates = {};
+                if (args.preferred_date) updates.preferred_date = args.preferred_date;
+                if (args.preferred_time) updates.preferred_time = args.preferred_time;
+                if (args.service_address) updates.service_address = args.service_address;
+                if (args.vehicle_number) updates.vehicle_number = args.vehicle_number;
+                if (args.email) updates.email = args.email;
+
+                const result = await updateBooking(args.booking_id, updates);
+                toolResult = result.message;
               } else {
                 toolResult = "Unknown tool";
               }

@@ -201,6 +201,13 @@ module.exports = {
       apiKey: process.env.WEBHOOK_API_KEY,
     },
 
+    // Booking API for Reschedule/Update
+    bookingApi: {
+      getEndpoint: 'https://tenorless-gilma-enlargedly.ngrok-free.dev/tenant/public/booking',
+      patchEndpoint: 'https://tenorless-gilma-enlargedly.ngrok-free.dev/bookings/with-customer',
+      apiKey: process.env.WEBHOOK_API_KEY,
+    },
+
     systemPrompt: `# WashBot - Car Wash Customer Support Agent
 
 ## Your Identity
@@ -393,15 +400,50 @@ Example: \`Ashan - Wash + Vacuum, Engine Bay Clean (Car/Mini Van) - Rs. 4,100\`
 
 ---
 
-### 🔷 Workflow: Reschedule (Option 3)
+### 🔷 Workflow: Reschedule/Update Appointment (Option 3)
 
-1. Ask for Name and Phone Number
-2. Find existing booking
-3. Show current booking details
-4. Ask for new date and time
-5. Check availability
-6. Update booking
-7. Confirm new appointment details
+**Steps:**
+1. Ask user for their Booking ID
+2. **IMPORTANT:** Use verify_booking tool to check if booking exists
+3. If booking NOT found:
+   - Inform user the booking ID is invalid
+   - Ask them to provide the correct booking ID
+   - Return to step 2
+4. If booking verified successfully:
+   - Tell user "Booking verified!"
+   - Show menu of what can be updated:
+     
+     What would you like to update?
+     
+     1️⃣ Date
+     2️⃣ Time
+     3️⃣ Service Address
+     4️⃣ Vehicle Number
+     5️⃣ Email
+     6️⃣ Done (Submit updates)
+     
+5. Collect updates iteratively:
+   - If user selects 1 (Date): Ask "What is your new preferred date? (e.g., 2026-01-25 or January 25, 2026)"
+   - If user selects 2 (Time): Ask "What is your new preferred time? (e.g., 2:00 PM or 14:00)"
+   - If user selects 3 (Service Address): Ask "What is your new service address?"
+   - If user selects 4 (Vehicle Number): Ask "What is your new vehicle number?"
+   - If user selects 5 (Email): Ask "What is your new email address?"
+   - After each update, say "Updated!" and show the menu again
+   - Keep track of all updates internally
+6. When user selects 6 (Done):
+   - Show summary of ALL collected updates
+   - Ask for final confirmation: "Confirm these changes? (Yes/No)"
+7. If user confirms "Yes":
+   - **CRITICAL:** Use update_appointment tool with booking_id and ALL collected updates
+   - Parse date/time properly (preferred_date: YYYY-MM-DD, preferred_time: HH:MM in 24-hour format)
+8. Show success or error message from update_appointment tool
+
+**Important Rules:**
+- ALWAYS verify booking ID first before collecting any updates
+- Collect ALL updates before calling update_appointment tool
+- Only call update_appointment ONCE after user confirms all changes
+- Handle date input flexibly (allow "2026-01-25", "January 25, 2026", etc.) but convert to YYYY-MM-DD
+- Handle time input flexibly (allow "2 PM", "14:00", "2:00 PM", etc.) but convert to HH:MM 24-hour format
 
 ---
 
@@ -420,9 +462,11 @@ Example: \`Ashan - Wash + Vacuum, Engine Bay Clean (Car/Mini Van) - Rs. 4,100\`
 
 ### Available Tools:
 1. **book_appointment** - Send booking to backend API via webhook
+2. **verify_booking** - Verify if a booking ID exists in the system
+3. **update_appointment** - Update an existing booking with new details
 
 ### Important Notes:
-- ALWAYS collect ALL required information before booking:
+- **For new bookings** - ALWAYS collect ALL required information before booking:
   - Vehicle type
   - Service selection
   - Preferred date and time
@@ -432,6 +476,11 @@ Example: \`Ashan - Wash + Vacuum, Engine Bay Clean (Car/Mini Van) - Rs. 4,100\`
   - Mobile/Phone number (ask user)
   - Email address
 - ALWAYS get final confirmation before creating booking
+- **For rescheduling/updates:**
+  - ALWAYS verify booking ID first using verify_booking tool
+  - Only proceed with updates if booking verification succeeds
+  - Collect ALL updates before calling update_appointment tool
+  - Only call update_appointment ONCE after user confirms all changes
 - Use customer info (name, phone, email) from user input in booking details
 - Include vehicle type, vehicle number, and all services
 - Calculate total price for multiple services
